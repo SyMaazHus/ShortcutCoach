@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ShortcutCoach.Core/ShortcutCoach.Core.csproj" />
+    <Project Path="src/ShortcutCoach/ShortcutCoach.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ShortcutCoach.Core.Tests/ShortcutCoach.Core.Tests.csproj" />
+  </Folder>
+</Solution>
