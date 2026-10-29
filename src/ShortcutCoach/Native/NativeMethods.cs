@@ -10,6 +10,8 @@ internal static class NativeMethods
 {
     public const int WH_MOUSE_LL = 14;
     public const int WM_LBUTTONDOWN = 0x0201;
+    public const uint WM_QUIT = 0x0012;
+    public const uint PM_NOREMOVE = 0x0000;
 
     /// <summary>
     /// Signature of a low-level mouse hook callback.
@@ -34,6 +36,33 @@ internal static class NativeMethods
         public uint time;
         public UIntPtr dwExtraInfo;
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSG
+    {
+        public IntPtr hwnd;
+        public uint message;
+        public UIntPtr wParam;
+        public IntPtr lParam;
+        public uint time;
+        public POINT pt;
+        public uint lPrivate;
+    }
+
+    /// <summary>Returns &gt;0 for a message, 0 for WM_QUIT, -1 on error.</summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern int GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool PeekMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool PostThreadMessage(uint idThread, uint Msg, UIntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelMouseProc lpfn, IntPtr hMod, uint dwThreadId);

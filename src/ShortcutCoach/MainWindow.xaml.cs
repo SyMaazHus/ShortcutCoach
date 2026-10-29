@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using ShortcutCoach.Automation;
 using ShortcutCoach.Core;
@@ -31,17 +32,52 @@ public partial class MainWindow : Window
         ClickLog.ItemsSource = _entries;
 
         _clickResolver.Resolved += OnResolved;
+        _clickResolver.Faulted += OnResolverFaulted;
 
         _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _statusTimer.Tick += (_, _) => UpdateStatus();
         _statusTimer.Start();
         UpdateStatus();
+
+#if DEBUG
+        KeyDown += OnDebugKeyDown;
+#endif
     }
+
+#if DEBUG
+    // Fault injection for testing the crash handlers. Window-local keys (only
+    // while this window has focus), not global hotkeys: the app registers no
+    // keyboard input beyond the hint-mode hotkey. Compiled out of Release builds,
+    // like code inside #ifdef DEBUG in C.
+    private void OnDebugKeyDown(object sender, KeyEventArgs e)
+    {
+        if (Keyboard.Modifiers != (ModifierKeys.Control | ModifierKeys.Shift))
+            return;
+
+        switch (e.Key)
+        {
+            case Key.U:
+                // Should appear as "!!" via App's DispatcherUnhandledException handler.
+                throw new InvalidOperationException("DEBUG test fault (UI thread)");
+
+            case Key.R:
+                _clickResolver.InjectFault();
+                AddLine($"{DateTime.Now:HH:mm:ss}  -- resolver fault armed; click anywhere to trigger");
+                e.Handled = true;
+                break;
+        }
+    }
+#endif
 
     // Called on the resolver's worker thread; WPF controls may only be touched
     // from the UI thread, so queue the update onto it.
     private void OnResolved(ClickInfo info) =>
         Dispatcher.BeginInvoke(() => AddEntry(info));
+
+    // Also called on the worker thread, just before the resolver restarts.
+    private void OnResolverFaulted(Exception ex) =>
+        Dispatcher.BeginInvoke(() =>
+            AddError($"Resolver crashed, restarting: {ex.GetType().Name}: {ex.Message}"));
 
     private void AddEntry(ClickInfo info) =>
         AddLine($"{info.Timestamp:HH:mm:ss}  {info}");
@@ -61,12 +97,15 @@ public partial class MainWindow : Window
         StatusText.Text =
             $"Clicks: {_mouseHook.ClickCount}    " +
             $"Resolved: {_clickResolver.ResolvedCount}    " +
+            $"Ignored: {_clickResolver.IgnoredCount}    " +
             $"Skipped: {_clickResolver.SkippedCount}    " +
-            $"Hook max: {_mouseHook.MaxCallbackMicroseconds:F0} µs";
+            $"Hook max(100): {_mouseHook.MaxCallbackMicroseconds:F0} µs / lag {_mouseHook.MaxLagMilliseconds} ms    " +
+            $"Resolver: {_clickResolver.Status} (restarts: {_clickResolver.RestartCount})";
 
     protected override void OnClosed(EventArgs e)
     {
         _clickResolver.Resolved -= OnResolved;
+        _clickResolver.Faulted -= OnResolverFaulted;
         _statusTimer.Stop();
         base.OnClosed(e);
     }

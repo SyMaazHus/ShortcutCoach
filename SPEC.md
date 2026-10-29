@@ -51,9 +51,9 @@ MouseHook ──click(x,y)──▶ ElementResolver ──element──▶ Short
 ## Milestones & acceptance criteria
 
 ### M1 — Click logger
-- [ ] Global mouse hook captures left clicks in any app
-- [ ] Each click resolves to element name, control type, and process name
-- [ ] Results shown live in a debug window
+- [x] Global mouse hook captures left clicks in any app
+- [x] Each click resolves to element name, control type, and process name
+- [x] Results shown live in a debug window
 - [ ] App runs 30+ minutes without crashing or slowing the mouse
 - **Done when:** clicking Bold in Word logs `Bold (Button) — WINWORD`
 
