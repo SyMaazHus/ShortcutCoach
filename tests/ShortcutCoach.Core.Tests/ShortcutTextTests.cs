@@ -54,6 +54,7 @@ public class ShortcutTextTests
     [InlineData("Delete browsing data… Ctrl+Shift+Del", "Delete browsing data…", "Ctrl+Shift+Del")] // probe: Chrome menu
     [InlineData("New Incognito window Ctrl+Shift+N", "New Incognito window", "Ctrl+Shift+N")] // probe: Chrome menu
     [InlineData("Full screen F11", "Full screen", "F11")]
+    [InlineData("Delete (Del)", "Delete", "Del")]
     public void FromName_ExtractsTrailingShortcut(string name, string expectedBase, string expectedShortcut)
     {
         Assert.Equal(expectedShortcut, ShortcutText.FromName(name, out string baseName));
@@ -66,6 +67,10 @@ public class ShortcutTextTests
     [InlineData("Copy")]
     [InlineData("Notes (draft)")]         // parentheses, but not a shortcut
     [InlineData("History")]
+    [InlineData("Delete")]                // bare keys count only inside brackets
+    [InlineData("Confirm Delete")]
+    [InlineData("Press Enter")]
+    [InlineData("Escape")]
     public void FromName_ReturnsNull_WhenNameDoesNotEndWithShortcut(string name)
     {
         Assert.Null(ShortcutText.FromName(name, out string baseName));
