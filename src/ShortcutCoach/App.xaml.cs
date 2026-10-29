@@ -1,8 +1,8 @@
 ﻿using System.Threading.Channels;
 using System.Windows;
 using ShortcutCoach.Automation;
+using ShortcutCoach.Core;
 using ShortcutCoach.Input;
-using Point = System.Drawing.Point; // integer screen pixels, as FlaUI expects (not WPF's double-based Point)
 
 namespace ShortcutCoach;
 
@@ -10,7 +10,7 @@ public partial class App : Application
 {
     // Bounded so a slow consumer can never block the hook or grow memory:
     // when full, the oldest queued click is dropped.
-    private readonly Channel<Point> _clicks = Channel.CreateBounded<Point>(
+    private readonly Channel<ClickPoint> _clicks = Channel.CreateBounded<ClickPoint>(
         new BoundedChannelOptions(64) { FullMode = BoundedChannelFullMode.DropOldest });
 
     private MouseHook? _mouseHook;
@@ -28,9 +28,12 @@ public partial class App : Application
             args.Handled = true;
         };
 
+        // Throws if the embedded DB is malformed; the Core tests guard against that.
+        var shortcutResolver = new ShortcutResolver(ShortcutDb.LoadBuiltIn());
+
         _clickResolver = new ClickResolver(_clicks.Reader);
         _mouseHook = new MouseHook(_clicks.Writer);
-        _mainWindow = new MainWindow(_mouseHook, _clickResolver);
+        _mainWindow = new MainWindow(_mouseHook, _clickResolver, shortcutResolver);
         _mainWindow.Show();
     }
 

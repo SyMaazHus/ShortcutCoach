@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Threading.Channels;
+using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
 using ShortcutCoach.Core;
-using Point = System.Drawing.Point;
+using ShortcutCoach.Input;
 
 namespace ShortcutCoach.Automation;
 
@@ -25,7 +27,20 @@ internal sealed class ClickResolver : IDisposable
 {
     private static readonly TimeSpan RestartDelay = TimeSpan.FromSeconds(1);
 
-    private readonly ChannelReader<Point> _clicks;
+    // FromPoint returns the deepest element, which for a menu item is often its
+    // label: Notepad's Edit > Copy hits "Copy (Text)", while the AcceleratorKey
+    // lives on the parent "Copy (MenuItem)". Climb at most this many levels.
+    private const int MaxClimb = 2;
+
+    private static readonly HashSet<ControlType> LabelTypes = [ControlType.Text, ControlType.Image];
+
+    private static readonly HashSet<ControlType> InteractiveTypes =
+    [
+        ControlType.Button, ControlType.MenuItem, ControlType.SplitButton, ControlType.ListItem,
+        ControlType.TabItem, ControlType.Hyperlink, ControlType.CheckBox,
+    ];
+
+    private readonly ChannelReader<ClickPoint> _clicks;
     private readonly CancellationTokenSource _stop = new();
     private readonly Thread _thread;
     private readonly int _ownProcessId = Environment.ProcessId;
@@ -54,7 +69,7 @@ internal sealed class ClickResolver : IDisposable
     /// </summary>
     public event Action<Exception>? Faulted;
 
-    public ClickResolver(ChannelReader<Point> clicks)
+    public ClickResolver(ChannelReader<ClickPoint> clicks)
     {
         _clicks = clicks;
         _thread = new Thread(Run) { IsBackground = true, Name = "ClickResolver" };
@@ -137,7 +152,7 @@ internal sealed class ClickResolver : IDisposable
         // then drains everything queued.
         while (_clicks.WaitToReadAsync(_stop.Token).AsTask().GetAwaiter().GetResult())
         {
-            while (_clicks.TryRead(out Point point))
+            while (_clicks.TryRead(out ClickPoint click))
             {
 #if DEBUG
                 if (_faultRequested)
@@ -148,7 +163,7 @@ internal sealed class ClickResolver : IDisposable
 #endif
                 // Raised outside Resolve's catch so a bug in a subscriber reaches
                 // the supervisor (logged) instead of being counted as a skip.
-                ClickInfo? info = Resolve(automation, point);
+                ClickInfo? info = Resolve(automation, click);
                 if (info != null)
                     Resolved?.Invoke(info);
             }
@@ -156,11 +171,11 @@ internal sealed class ClickResolver : IDisposable
     }
 
     /// <summary>Returns the clicked element's info, or null if the click should be skipped.</summary>
-    private ClickInfo? Resolve(UIA3Automation automation, Point point)
+    private ClickInfo? Resolve(UIA3Automation automation, ClickPoint click)
     {
         try
         {
-            var element = automation.FromPoint(point);
+            var element = automation.FromPoint(click.Point);
             int processId = element.Properties.ProcessId.ValueOrDefault;
 
             if (processId == _ownProcessId)
@@ -169,13 +184,17 @@ internal sealed class ClickResolver : IDisposable
                 return null;
             }
 
+            element = ClimbFromLabel(automation, element);
+
             string name = element.Properties.Name.ValueOrDefault ?? "";
             string controlType = element.Properties.ControlType.ValueOrDefault.ToString();
+            string acceleratorKey = element.Properties.AcceleratorKey.ValueOrDefault ?? "";
 
             using var process = Process.GetProcessById(processId);
 
             Interlocked.Increment(ref _resolvedCount);
-            return new ClickInfo(process.ProcessName, name, controlType, DateTime.Now);
+            return new ClickInfo(
+                process.ProcessName, name, controlType, DateTime.Now, acceleratorKey, click.IsWebContent);
         }
         catch (Exception)
         {
@@ -184,6 +203,33 @@ internal sealed class ClickResolver : IDisposable
             Interlocked.Increment(ref _skippedCount);
             return null;
         }
+    }
+
+    /// <summary>
+    /// If <paramref name="hit"/> is a label (Text/Image) with no AcceleratorKey,
+    /// returns the nearest interactive ancestor within <see cref="MaxClimb"/> levels;
+    /// otherwise returns <paramref name="hit"/> unchanged.
+    /// </summary>
+    private static AutomationElement ClimbFromLabel(UIA3Automation automation, AutomationElement hit)
+    {
+        if (!LabelTypes.Contains(hit.Properties.ControlType.ValueOrDefault)
+            || !string.IsNullOrEmpty(hit.Properties.AcceleratorKey.ValueOrDefault))
+        {
+            return hit;
+        }
+
+        var walker = automation.TreeWalkerFactory.GetControlViewWalker();
+        AutomationElement? current = hit;
+        for (int i = 0; i < MaxClimb; i++)
+        {
+            current = walker.GetParent(current);
+            if (current == null)
+                break;
+            if (InteractiveTypes.Contains(current.Properties.ControlType.ValueOrDefault))
+                return current;
+        }
+
+        return hit;
     }
 
     public void Dispose()

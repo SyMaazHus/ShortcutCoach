@@ -17,18 +17,20 @@ public partial class MainWindow : Window
 
     private readonly MouseHook _mouseHook;
     private readonly ClickResolver _clickResolver;
+    private readonly ShortcutResolver _shortcutResolver;
     private readonly DispatcherTimer _statusTimer;
 
     // An ObservableCollection notifies the ListBox whenever items are added or
     // removed, so the list redraws itself (no manual "refresh" call needed).
     private readonly ObservableCollection<string> _entries = [];
 
-    internal MainWindow(MouseHook mouseHook, ClickResolver clickResolver)
+    internal MainWindow(MouseHook mouseHook, ClickResolver clickResolver, ShortcutResolver shortcutResolver)
     {
         InitializeComponent();
 
         _mouseHook = mouseHook;
         _clickResolver = clickResolver;
+        _shortcutResolver = shortcutResolver;
         ClickLog.ItemsSource = _entries;
 
         _clickResolver.Resolved += OnResolved;
@@ -79,8 +81,25 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(() =>
             AddError($"Resolver crashed, restarting: {ex.GetType().Name}: {ex.Message}"));
 
-    private void AddEntry(ClickInfo info) =>
-        AddLine($"{info.Timestamp:HH:mm:ss}  {info}");
+    // e.g. "10:42:07  Copy (MenuItem) — Notepad  → Ctrl+C [accelerator]"
+    private void AddEntry(ClickInfo info)
+    {
+        string web = info.IsWebContent ? "  [web]" : "";
+        string suggestion = _shortcutResolver.Resolve(info) is { } s
+            ? $"  → {s.Shortcut} [{SourceLabel(s.Source)}]"
+            : "";
+        AddLine($"{info.Timestamp:HH:mm:ss}  {info}{web}{suggestion}");
+    }
+
+    // A switch expression maps each value to a result, like a C switch where
+    // every case returns.
+    private static string SourceLabel(ShortcutSource source) => source switch
+    {
+        ShortcutSource.Accelerator => "accelerator",
+        ShortcutSource.Name => "name",
+        ShortcutSource.Database => "db",
+        _ => source.ToString(),
+    };
 
     /// <summary>Adds an error line to the log. Must be called on the UI thread.</summary>
     internal void AddError(string message) =>

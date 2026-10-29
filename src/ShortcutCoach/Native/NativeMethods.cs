@@ -76,4 +76,16 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern IntPtr GetModuleHandle(string? lpModuleName);
+
+    /// <summary>Deepest visible window at a screen point. Sends no messages to other threads' windows.</summary>
+    [DllImport("user32.dll")]
+    public static extern IntPtr WindowFromPoint(POINT point);
+
+    /// <summary>
+    /// Copies the window's class name into <paramref name="className"/> and returns its length.
+    /// Sends no messages. The char[] is pinned and written in place, so reusing one
+    /// buffer avoids any allocation (unlike a StringBuilder).
+    /// </summary>
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassName(IntPtr hWnd, [Out] char[] className, int maxCount);
 }

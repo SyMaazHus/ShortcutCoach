@@ -23,7 +23,15 @@ internal sealed class MouseHook : IDisposable
 {
     private const int MetricWindow = 100;
 
-    private readonly ChannelWriter<Point> _clicks;
+    // Chromium (Chrome, Edge, Electron) renders page content into a child window
+    // of this class; its own toolbars and menus use other windows.
+    private const string WebContentClass = "Chrome_RenderWidgetHostHWND";
+
+    private readonly ChannelWriter<ClickPoint> _clicks;
+
+    // Reused by every callback so reading a class name never allocates.
+    // Only touched on the hook thread.
+    private readonly char[] _classBuffer = new char[64];
 
     // Kept in a field so the GC can't collect it while Windows still holds the
     // pointer. A local variable here would crash the app once the GC runs.
@@ -41,7 +49,7 @@ internal sealed class MouseHook : IDisposable
     private long _maxCallbackTicks;
     private long _maxLagMs;
 
-    public MouseHook(ChannelWriter<Point> clicks)
+    public MouseHook(ChannelWriter<ClickPoint> clicks)
     {
         _clicks = clicks;
         _callback = HookCallback;
@@ -87,6 +95,10 @@ internal sealed class MouseHook : IDisposable
         // PostThreadMessage(WM_QUIT) can never be lost.
         NativeMethods.PeekMessage(out _, IntPtr.Zero, 0, 0, NativeMethods.PM_NOREMOVE);
 
+        // The first P/Invoke call pays a one-off setup cost (~10 ms); pay it now
+        // rather than inside the first real callback.
+        IsWebContentAt(default);
+
         IntPtr hook = NativeMethods.SetWindowsHookEx(
             NativeMethods.WH_MOUSE_LL, _callback, NativeMethods.GetModuleHandle(null), 0);
 
@@ -117,7 +129,12 @@ internal sealed class MouseHook : IDisposable
             long start = Stopwatch.GetTimestamp();
 
             var info = Marshal.PtrToStructure<NativeMethods.MSLLHOOKSTRUCT>(lParam);
-            _clicks.TryWrite(new Point(info.pt.X, info.pt.Y));
+
+            // Read here, at mouse-down, before a page navigates or a menu closes.
+            // Safe in the callback: neither call sends a window message, and the
+            // cost shows up in MaxCallbackMicroseconds below.
+            bool isWebContent = IsWebContentAt(info.pt);
+            _clicks.TryWrite(new ClickPoint(new Point(info.pt.X, info.pt.Y), isWebContent));
             Interlocked.Increment(ref _clickCount);
 
             // info.time and TickCount share the same millisecond clock; the
@@ -131,6 +148,19 @@ internal sealed class MouseHook : IDisposable
         }
 
         return NativeMethods.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
+    }
+
+    private bool IsWebContentAt(NativeMethods.POINT pt)
+    {
+        IntPtr hwnd = NativeMethods.WindowFromPoint(pt);
+        if (hwnd == IntPtr.Zero)
+            return false;
+
+        int length = NativeMethods.GetClassName(hwnd, _classBuffer, _classBuffer.Length);
+
+        // A span is a pointer + length view into the buffer, like comparing
+        // with memcmp instead of building a new string.
+        return _classBuffer.AsSpan(0, length).SequenceEqual(WebContentClass);
     }
 
     public void Dispose()
