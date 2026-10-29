@@ -54,7 +54,7 @@ MouseHook ──click(x,y)──▶ ElementResolver ──element──▶ Short
 - [x] Global mouse hook captures left clicks in any app
 - [x] Each click resolves to element name, control type, and process name
 - [x] Results shown live in a debug window
-- [ ] App runs 30+ minutes without crashing or slowing the mouse
+- [x] App runs 30+ minutes without crashing or slowing the mouse
 - **Done when:** clicking Bold in Word logs `Bold (Button) — WINWORD`
 
 ### M2 — Shortcut suggestions
