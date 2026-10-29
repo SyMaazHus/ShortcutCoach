@@ -5,6 +5,7 @@ using System.Windows.Threading;
 using ShortcutCoach.Automation;
 using ShortcutCoach.Core;
 using ShortcutCoach.Input;
+using ShortcutCoach.Notify;
 
 namespace ShortcutCoach;
 
@@ -18,19 +19,22 @@ public partial class MainWindow : Window
     private readonly MouseHook _mouseHook;
     private readonly ClickResolver _clickResolver;
     private readonly ShortcutResolver _shortcutResolver;
+    private readonly ToastWindow _toast;
     private readonly DispatcherTimer _statusTimer;
 
     // An ObservableCollection notifies the ListBox whenever items are added or
     // removed, so the list redraws itself (no manual "refresh" call needed).
     private readonly ObservableCollection<string> _entries = [];
 
-    internal MainWindow(MouseHook mouseHook, ClickResolver clickResolver, ShortcutResolver shortcutResolver)
+    internal MainWindow(MouseHook mouseHook, ClickResolver clickResolver, ShortcutResolver shortcutResolver,
+        ToastWindow toast)
     {
         InitializeComponent();
 
         _mouseHook = mouseHook;
         _clickResolver = clickResolver;
         _shortcutResolver = shortcutResolver;
+        _toast = toast;
         ClickLog.ItemsSource = _entries;
 
         _clickResolver.Resolved += OnResolved;
@@ -65,6 +69,19 @@ public partial class MainWindow : Window
             case Key.R:
                 _clickResolver.InjectFault();
                 AddLine($"{DateTime.Now:HH:mm:ss}  -- resolver fault armed; click anywhere to trigger");
+                e.Handled = true;
+                break;
+
+            case Key.T:
+                // Delayed so there's time to switch to another app and check focus.
+                var delay = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+                delay.Tick += (_, _) =>
+                {
+                    delay.Stop();
+                    _toast.ShowSuggestion("Copy → Ctrl+C");
+                };
+                delay.Start();
+                AddLine($"{DateTime.Now:HH:mm:ss}  -- test toast in 3 s; switch to another app");
                 e.Handled = true;
                 break;
         }

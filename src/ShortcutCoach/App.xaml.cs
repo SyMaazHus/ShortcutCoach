@@ -3,6 +3,7 @@ using System.Windows;
 using ShortcutCoach.Automation;
 using ShortcutCoach.Core;
 using ShortcutCoach.Input;
+using ShortcutCoach.Notify;
 
 namespace ShortcutCoach;
 
@@ -16,6 +17,7 @@ public partial class App : Application
     private MouseHook? _mouseHook;
     private ClickResolver? _clickResolver;
     private MainWindow? _mainWindow;
+    private ToastWindow? _toast;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -33,12 +35,17 @@ public partial class App : Application
 
         _clickResolver = new ClickResolver(_clicks.Reader);
         _mouseHook = new MouseHook(_clicks.Writer);
-        _mainWindow = new MainWindow(_mouseHook, _clickResolver, shortcutResolver);
+        _toast = new ToastWindow();
+        _mainWindow = new MainWindow(_mouseHook, _clickResolver, shortcutResolver, _toast);
+        // WPF makes the first window constructed the MainWindow (the toast here);
+        // with ShutdownMode=OnMainWindowClose, closing the debug window must exit.
+        MainWindow = _mainWindow;
         _mainWindow.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _toast?.Close();
         _mouseHook?.Dispose();
         _clickResolver?.Dispose();
         base.OnExit(e);
