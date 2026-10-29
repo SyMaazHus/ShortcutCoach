@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Compiled into the DLL, so there's no loose file to find at runtime. -->
+    <EmbeddedResource Include="Data\shortcuts.json" LogicalName="ShortcutCoach.Core.shortcuts.json" />
+  </ItemGroup>
+
 </Project>

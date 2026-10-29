@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "apps": {
+    "explorer": [
+      { "name": "Cut", "shortcut": "Ctrl+X" },
+      { "name": "Copy", "shortcut": "Ctrl+C" },
+      { "name": "Paste", "shortcut": "Ctrl+V" },
+      { "name": "Rename", "shortcut": "F2" },
+      { "name": "Delete", "shortcut": "Del" },
+      { "name": "Folder", "controlType": "MenuItem", "shortcut": "Ctrl+Shift+N" },
+      { "name": "Add New Tab", "controlType": "Button", "shortcut": "Ctrl+T" },
+      { "name": "Close Tab", "controlType": "Button", "shortcut": "Ctrl+W" },
+      { "name": "Details", "controlType": "Button", "shortcut": "Alt+Shift+P" },
+      { "name": "Details", "controlType": "RadioButton", "shortcut": "Ctrl+Shift+6" },
+      { "name": "Large Icons", "controlType": "RadioButton", "shortcut": "Ctrl+Shift+2" }
+    ],
+    "chrome": [
+      { "name": "Back", "controlType": "Button", "shortcut": "Alt+Left" },
+      { "name": "Forward", "controlType": "Button", "shortcut": "Alt+Right" },
+      { "name": "Reload", "controlType": "Button", "shortcut": "Ctrl+R" },
+      { "name": "Bookmark this tab", "controlType": "Button", "shortcut": "Ctrl+D" },
+      { "name": "New tab", "controlType": "Button", "shortcut": "Ctrl+T" },
+      { "name": "Tab search", "controlType": "Button", "shortcut": "Ctrl+Shift+A" },
+      { "name": "Chrome", "controlType": "Button", "shortcut": "Alt+F" }
+    ],
+    "WINWORD": [
+      { "name": "Underline", "shortcut": "Ctrl+U" },
+      { "name": "Increase Indent", "controlType": "Button", "shortcut": "Ctrl+M" },
+      { "name": "Decrease Indent", "controlType": "Button", "shortcut": "Ctrl+Shift+M" },
+      { "name": "Font...", "controlType": "Button", "shortcut": "Ctrl+D" },
+      { "name": "Print Layout", "controlType": "Button", "shortcut": "Ctrl+Alt+P" }
+    ]
+  }
+}
