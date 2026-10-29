@@ -36,6 +36,18 @@ public class ShortcutDbTests
         Assert.Equal(expected, ShortcutDb.LoadBuiltIn().Lookup(process, name, controlType));
     }
 
+    [Theory]
+    [InlineData("explorer", "Copy", "ListItem")]      // a file named "Copy"
+    [InlineData("explorer", "Rename", "ListItem")]
+    [InlineData("explorer", "Delete", "TreeItem")]    // a folder in the nav pane
+    [InlineData("explorer", "Paste", "TabItem")]      // a tab showing a folder named "Paste"
+    [InlineData("explorer", "Cut", "DataItem")]
+    [InlineData("WINWORD", "Underline", "ListItem")]
+    public void BuiltIn_NeverMatchesContentItems(string process, string name, string controlType)
+    {
+        Assert.Null(ShortcutDb.LoadBuiltIn().Lookup(process, name, controlType));
+    }
+
     [Fact]
     public void BuiltIn_HasNoVsCodeEntries()
     {
@@ -70,6 +82,25 @@ public class ShortcutDbTests
         ShortcutDb db = Db("""{ "name": "Copy", "shortcut": "Ctrl+C" }""");
         Assert.Equal("Ctrl+C", db.Lookup("explorer", "Copy", "Button"));
         Assert.Equal("Ctrl+C", db.Lookup("explorer", "Copy", "MenuItem"));
+    }
+
+    [Theory]
+    [InlineData("ListItem")]
+    [InlineData("TreeItem")]
+    [InlineData("TabItem")]
+    [InlineData("DataItem")]
+    [InlineData("listitem")]
+    public void Lookup_EntryWithoutControlType_NeverMatchesContentItems(string controlType)
+    {
+        ShortcutDb db = Db("""{ "name": "Copy", "shortcut": "Ctrl+C" }""");
+        Assert.Null(db.Lookup("explorer", "Copy", controlType));
+    }
+
+    [Fact]
+    public void Lookup_ContentItem_MatchesWhenEntryNamesItsType()
+    {
+        ShortcutDb db = Db("""{ "name": "Copy", "controlType": "ListItem", "shortcut": "Ctrl+C" }""");
+        Assert.Equal("Ctrl+C", db.Lookup("explorer", "Copy", "ListItem"));
     }
 
     [Fact]

@@ -10,7 +10,8 @@ namespace ShortcutCoach.Core;
 /// <remarks>
 /// Matching ignores case, extra whitespace, a trailing shortcut ("Bold (Ctrl+B)"),
 /// <c>&amp;</c> mnemonic markers and a trailing ellipsis ("Font..."). An entry with a
-/// control type beats one without, which means "any control type".
+/// control type beats one without, which means "any control type except content
+/// items" (ListItem, TreeItem, TabItem, DataItem).
 /// </remarks>
 public sealed class ShortcutDb
 {
@@ -28,6 +29,11 @@ public sealed class ShortcutDb
         "ScrollBar", "SemanticZoom", "Separator", "Slider", "Spinner", "SplitButton", "StatusBar",
         "Tab", "TabItem", "Table", "Text", "Thumb", "TitleBar", "ToolBar", "ToolTip", "Tree",
         "TreeItem", "Window",
+    };
+
+    private static readonly HashSet<string> ContentControlTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ListItem", "TreeItem", "TabItem", "DataItem",
     };
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -116,6 +122,11 @@ public sealed class ShortcutDb
 
         if (_entries.TryGetValue(Key(processName, name, controlType), out string? shortcut))
             return shortcut;
+
+        // Content items are named by the user (a file called "Copy", a tab titled
+        // "Paste"), so only an entry that names their type explicitly may match them.
+        if (ContentControlTypes.Contains(controlType))
+            return null;
 
         return _entries.GetValueOrDefault(Key(processName, name, AnyControlType));
     }

@@ -5,15 +5,21 @@ namespace ShortcutCoach.Core;
 /// <summary>
 /// One resolved mouse click: what was clicked, in which process, and when.
 /// </summary>
+/// <param name="AcceleratorKey">The element's raw UIA AcceleratorKey, or "" if it has none.</param>
+/// <param name="IsWebContent">True when the click landed inside a web page (Chromium page area).</param>
 /// <remarks>
 /// A <c>record</c> is like an immutable C struct whose fields are set once at
 /// creation; the compiler also generates value-based equality for it.
+/// Parameters with defaults can be left out by callers, like optional fields
+/// zero-initialised in a C designated initializer.
 /// </remarks>
 public sealed record ClickInfo(
     string ProcessName,
     string ElementName,
     string ControlType,
-    DateTime Timestamp)
+    DateTime Timestamp,
+    string AcceleratorKey = "",
+    bool IsWebContent = false)
 {
     private const string UnnamedPlaceholder = "(unnamed)";
 
