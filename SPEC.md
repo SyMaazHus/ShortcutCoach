@@ -57,10 +57,14 @@ MouseHook ──click(x,y)──▶ ElementResolver ──element──▶ Short
 - [x] App runs 30+ minutes without crashing or slowing the mouse
 - **Done when:** clicking Bold in Word logs `Bold (Button) — WINWORD`
 
-### M2 — Shortcut suggestions
-- [ ] Reads `AcceleratorKey` from the clicked element
-- [ ] Fallback JSON shortcut DB for common apps (Explorer, Chrome, VS Code, Word)
-- [ ] Toast appears near the cursor, auto-dismisses, never steals focus
+### M2 — Shortcut suggestions ✅
+- [x] Finds the shortcut in three tiers: the element's `AcceleratorKey`
+      (bare-letter mnemonics rejected), then a shortcut at the end of the name
+      (MenuItem/Button/SplitButton only), then the fallback DB. Inside web
+      content only the first tier applies.
+- [x] Fallback JSON shortcut DB for common apps (Explorer, Chrome, Word).
+      VS Code is deferred until it has been probed.
+- [x] Toast appears near the cursor, auto-dismisses, never steals focus
 - **Done when:** clicking Copy in Notepad's menu shows "Copy → Ctrl+C"
 
 ### M3 — Smart coaching

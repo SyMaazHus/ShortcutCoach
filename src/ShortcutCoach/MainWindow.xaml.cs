@@ -18,7 +18,6 @@ public partial class MainWindow : Window
 
     private readonly MouseHook _mouseHook;
     private readonly ClickResolver _clickResolver;
-    private readonly ShortcutResolver _shortcutResolver;
     private readonly ToastWindow _toast;
     private readonly DispatcherTimer _statusTimer;
 
@@ -26,18 +25,15 @@ public partial class MainWindow : Window
     // removed, so the list redraws itself (no manual "refresh" call needed).
     private readonly ObservableCollection<string> _entries = [];
 
-    internal MainWindow(MouseHook mouseHook, ClickResolver clickResolver, ShortcutResolver shortcutResolver,
-        ToastWindow toast)
+    internal MainWindow(MouseHook mouseHook, ClickResolver clickResolver, ToastWindow toast)
     {
         InitializeComponent();
 
         _mouseHook = mouseHook;
         _clickResolver = clickResolver;
-        _shortcutResolver = shortcutResolver;
         _toast = toast;
         ClickLog.ItemsSource = _entries;
 
-        _clickResolver.Resolved += OnResolved;
         _clickResolver.Faulted += OnResolverFaulted;
 
         _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
@@ -88,21 +84,21 @@ public partial class MainWindow : Window
     }
 #endif
 
-    // Called on the resolver's worker thread; WPF controls may only be touched
-    // from the UI thread, so queue the update onto it.
-    private void OnResolved(ClickInfo info) =>
-        Dispatcher.BeginInvoke(() => AddEntry(info));
-
-    // Also called on the worker thread, just before the resolver restarts.
+    // Called on the resolver's worker thread, just before it restarts. WPF controls
+    // may only be touched from the UI thread, so queue the update onto it.
     private void OnResolverFaulted(Exception ex) =>
         Dispatcher.BeginInvoke(() =>
             AddError($"Resolver crashed, restarting: {ex.GetType().Name}: {ex.Message}"));
 
-    // e.g. "10:42:07  Copy (MenuItem) — Notepad  → Ctrl+C [accelerator]"
-    private void AddEntry(ClickInfo info)
+    /// <summary>
+    /// Logs a click and the suggestion that was shown for it (null if none), e.g.
+    /// "10:42:07  Copy (MenuItem) — Notepad  → Ctrl+C [accelerator]".
+    /// Must be called on the UI thread.
+    /// </summary>
+    internal void AddClick(ClickInfo info, Suggestion? shown)
     {
         string web = info.IsWebContent ? "  [web]" : "";
-        string suggestion = _shortcutResolver.Resolve(info) is { } s
+        string suggestion = shown is { } s
             ? $"  → {s.Shortcut} [{SourceLabel(s.Source)}]"
             : "";
         AddLine($"{info.Timestamp:HH:mm:ss}  {info}{web}{suggestion}");
@@ -140,7 +136,6 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        _clickResolver.Resolved -= OnResolved;
         _clickResolver.Faulted -= OnResolverFaulted;
         _statusTimer.Stop();
         base.OnClosed(e);
